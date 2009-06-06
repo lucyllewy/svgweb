@@ -1,32 +1,26 @@
 /*
-Copyright (c) 2008 James Hight
-Copyright (c) 2008 Richard R. Masters, for his changes.
+ Copyright (c) 2009 by contributors:
 
-Permission is hereby granted, free of charge, to any person
-obtaining a copy of this software and associated documentation
-files (the "Software"), to deal in the Software without
-restriction, including without limitation the rights to use,
-copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the
-Software is furnished to do so, subject to the following
-conditions:
+ * James Hight (http://labs.zavoo.com/)
+ * Richard R. Masters
 
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-OTHER DEALINGS IN THE SOFTWARE.
+    http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
 */
 
 package com.sgweb.svg.nodes
 {
     import com.sgweb.svg.utils.EllipticalArc;
+    import com.sgweb.svg.core.SVGNode;
     
     import mx.utils.StringUtil;
     
@@ -38,12 +32,8 @@ package com.sgweb.svg.nodes
         private var lastCurveControlX:Number;
         private var lastCurveControlY:Number;
         
-        public function SVGPathNode(svgRoot:SVGRoot, xml:XML):void {
-            super(svgRoot, xml);
-        }    
-        
-        protected override function draw():void {
-            this.runGraphicsCommands();            
+        public function SVGPathNode(svgRoot:SVGSVGNode, xml:XML, original:SVGNode = null):void {
+            super(svgRoot, xml, original);
         }
         
         /**
@@ -53,16 +43,13 @@ package com.sgweb.svg.nodes
          */
          
         public function normalizeSVGData(data:String):String {
+
+            // xxx needs performance analysis
             data = StringUtil.trim(data);
-            
-            /* M & Z moved to main regular expression to support multiple occurances */
-            //data = data.replace(/^(M)/sig,"$1,");
-            //data = data.replace(/(Z)/sig,",$1"); 
-            
-                        
             data = data.replace(/([MACSLHVQTZ])/sig,",$1,");    
-            
+            data = data.replace(/e-/sg,"eneg"); // "-" dashes can be an exponent
             data = data.replace(/-/sg,",-"); // "-" dashes denote a negative number, not a separator        
+            data = data.replace(/eneg/sg,"e-"); // "-" dashes can be an exponent
             data = data.replace(/\s+/sg,","); //Replace spaces with a comma
             data = data.replace(/,{2,}/sg,","); // Remove any extra commas
             data = data.replace(/^,/, ''); //Remove leading comma
@@ -72,35 +59,36 @@ package com.sgweb.svg.nodes
         
         protected override function generateGraphicsCommands():void {
             
-            /*this.attributes['stroke-width'] = this.getAttribute('stroke-width', 1);
-            //this.attributes['stroke'] = this.getColor(this.getAttribute('stroke', 'black'));
-            this.attributes['stroke-dasharray'] = this.getAttribute('stroke-dasharray', 'none');            
-            
-            // Alphas
-            this.attributes['fill-opacity'] = this.getAttribute('fill-opacity', 1);
-            this.attributes['stroke-opacity'] = this.getAttribute('stroke-opacity', 1);
-            this.attributes['opacity'] = this.getAttribute('opacity', 1);*/
-        
             this._graphicsCommands = new  Array();
             
-            var pathData:String = this.normalizeSVGData(this._xml.@d);            
+            var command:String;
 
+            var lineAbs:Boolean;
+            var isAbs:Boolean;
+
+            var pathData:String = this.normalizeSVGData(this._xml.@d);            
             var szSegs:Array = pathData.split(',');
             
             this._graphicsCommands.push(['SF']);
-                        
+
+            var firstMove:Boolean = true;
             for(var pos:int = 0; pos < szSegs.length; ) {
-                var command:String = szSegs[pos++];                
+                command = szSegs[pos++];                
                                         
-                var isAbs:Boolean = false;
+                isAbs = false;
                         
                 switch(command) {
                     case "M":
                         isAbs = true;
                     case "m":
-                        this.moveTo(szSegs[pos++],szSegs[pos++]); // Move is always absolute                
+                        lineAbs = isAbs;
+                        if (firstMove) { //If first move is 'm' treate as absolute
+                            isAbs = true;
+                            firstMove = false;
+                        }
+                        this.moveTo(szSegs[pos++],szSegs[pos++], isAbs);
                         while (pos < szSegs.length && !isNaN(Number(szSegs[pos]))) {
-                            this.line(szSegs[pos++], szSegs[pos++], isAbs);
+                            this.line(szSegs[pos++], szSegs[pos++], lineAbs);
                         } 
                         break;
                     case "A":
@@ -162,8 +150,12 @@ package com.sgweb.svg.nodes
                         } while (pos < szSegs.length && !isNaN(Number(szSegs[pos])));
                         break;
                     case "Z":
+                        isAbs = true;
                     case "z":
                         this.closePath();
+                        while (pos < szSegs.length && !isNaN(Number(szSegs[pos]))) {
+                            this.line(szSegs[pos++], szSegs[pos++], isAbs);
+                        }
                         break;            
                                 
                     default:
@@ -178,10 +170,21 @@ package com.sgweb.svg.nodes
             this._graphicsCommands.push(['Z']);
         }
         
-        private function moveTo(x:Number, y:Number):void {
+        private function moveTo(x:Number, y:Number, isAbs:Boolean):void {
+            if (!isAbs) {
+                x += this.currentX;
+                y += this.currentY;
+            }
+
             this._graphicsCommands.push(['M', x, y]);
             this.currentX = x;
             this.currentY = y;
+
+            this.lastCurveControlX = this.currentX;
+            this.lastCurveControlY = this.currentY;
+
+            this.setXMinMax(x);
+            this.setYMinMax(y);
         }
         
         private function lineHorizontal(x:Number, isAbs:Boolean):void {
@@ -212,6 +215,12 @@ package com.sgweb.svg.nodes
                 this.currentY += y;                
             }            
             this._graphicsCommands.push(['L', this.currentX, this.currentY]);            
+
+            this.lastCurveControlX = this.currentX;
+            this.lastCurveControlY = this.currentY;
+
+            this.setXMinMax(x);
+            this.setYMinMax(y);
         }
         
         private function ellipticalArc(rx:Number, ry:Number, xAxisRotation:Number, largeArcFlag:Number, 
@@ -227,6 +236,13 @@ package com.sgweb.svg.nodes
             this.currentX = x;
             this.currentY = y;
             
+            this.lastCurveControlX = this.currentX;
+            this.lastCurveControlY = this.currentY;
+
+            this.setXMinMax(rx);
+            this.setYMinMax(ry);
+            this.setXMinMax(x);
+            this.setYMinMax(y);
         }
         
                 
@@ -262,6 +278,11 @@ package com.sgweb.svg.nodes
             
             this.lastCurveControlX = x1;
             this.lastCurveControlY = y1;
+
+            this.setXMinMax(x);
+            this.setYMinMax(y);
+            this.setXMinMax(x1);
+            this.setYMinMax(y1);
         }
         
         private function cubicBezierSmooth(x2:Number, y2:Number,
@@ -338,6 +359,27 @@ package com.sgweb.svg.nodes
             
             this.lastCurveControlX = x2;
             this.lastCurveControlY = y2;            
+
+            //Width/height calculations for gradients
+            this.setXMinMax(Pc_1.x);
+            this.setYMinMax(Pc_1.y);
+            this.setXMinMax(Pa_1.x);
+            this.setYMinMax(Pa_1.y);
+
+            this.setXMinMax(Pc_2.x);
+            this.setYMinMax(Pc_2.y);
+            this.setXMinMax(Pa_2.x);
+            this.setYMinMax(Pa_2.y);
+
+            this.setXMinMax(Pc_3.x);
+            this.setYMinMax(Pc_3.y);
+            this.setXMinMax(Pa_3.x);
+            this.setYMinMax(Pa_3.y);
+
+            this.setXMinMax(Pc_4.x);
+            this.setYMinMax(Pc_4.y);
+            this.setXMinMax(P3.x);
+            this.setYMinMax(P3.y);
         }    
         
         private function getMiddle(P0:Object, P1:Object):Object

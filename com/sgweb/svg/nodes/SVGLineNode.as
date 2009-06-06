@@ -1,36 +1,32 @@
 /*
-Copyright (c) 2008 James Hight
-Copyright (c) 2008 Richard R. Masters, for his changes.
+ Copyright (c) 2009 by contributors:
 
-Permission is hereby granted, free of charge, to any person
-obtaining a copy of this software and associated documentation
-files (the "Software"), to deal in the Software without
-restriction, including without limitation the rights to use,
-copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the
-Software is furnished to do so, subject to the following
-conditions:
+ * James Hight (http://labs.zavoo.com/)
+ * Richard R. Masters
 
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-OTHER DEALINGS IN THE SOFTWARE.
+    http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
 */
 
 package com.sgweb.svg.nodes
 {
+    import com.sgweb.svg.core.SVGNode;
+    import com.sgweb.svg.utils.SVGColors;
+
     public class SVGLineNode extends SVGNode
     {        
-        public function SVGLineNode(svgRoot:SVGRoot, xml:XML):void {
-            super(svgRoot, xml);
-        }    
+        public function SVGLineNode(svgRoot:SVGSVGNode, xml:XML, original:SVGNode = null):void {
+            super(svgRoot, xml, original);
+        }
         
         /**
          * Generate graphics commands to draw a line
@@ -39,11 +35,25 @@ package com.sgweb.svg.nodes
             
             this._graphicsCommands = new  Array();
             
-            var x1:Number = this.getAttribute('x1',0);
-            var y1:Number = this.getAttribute('y1',0);
-            var x2:Number = this.getAttribute('x2',0);
-            var y2:Number = this.getAttribute('y2',0);
+            var x1String:String = this.getAttribute('x1', '0');
+            var x1:Number = SVGColors.cleanNumber2(x1String, SVGNode(this.getSVGParent()).getWidth());
+
+            var y1String:String = this.getAttribute('y1', '0');
+            var y1:Number = SVGColors.cleanNumber2(y1String, SVGNode(this.getSVGParent()).getHeight());
+
+            var x2String:String = this.getAttribute('x2', '0');
+            var x2:Number = SVGColors.cleanNumber2(x2String, SVGNode(this.getSVGParent()).getWidth());
+
+            var y2String:String = this.getAttribute('y2', '0');
+            var y2:Number = SVGColors.cleanNumber2(y2String, SVGNode(this.getSVGParent()).getHeight());
             
+             //Width/height calculations for gradients
+            this.setXMinMax(x1);
+            this.setYMinMax(x2);
+
+            this.setXMinMax(y1);
+            this.setYMinMax(y2);
+           
             this._graphicsCommands.push(['LINE', x1, y1, x2, y2]);
         }        
         

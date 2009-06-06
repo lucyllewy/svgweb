@@ -1,38 +1,32 @@
 /*
-Copyright (c) 2008 James Hight
-Copyright (c) 2008 Richard R. Masters, for his changes.
+ Copyright (c) 2009 by contributors:
 
-Permission is hereby granted, free of charge, to any person
-obtaining a copy of this software and associated documentation
-files (the "Software"), to deal in the Software without
-restriction, including without limitation the rights to use,
-copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the
-Software is furnished to do so, subject to the following
-conditions:
+ * James Hight (http://labs.zavoo.com/)
+ * Richard R. Masters
 
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-OTHER DEALINGS IN THE SOFTWARE.
+    http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
 */
 
 package com.sgweb.svg.nodes
 {
-    import com.sgweb.svg.data.SVGColors;
+    import com.sgweb.svg.core.SVGNode;
+    import com.sgweb.svg.utils.SVGColors;
     
     public class SVGRectNode extends SVGNode
     {                
-        public function SVGRectNode(svgRoot:SVGRoot, xml:XML):void {
-            super(svgRoot, xml);
-        }    
+        public function SVGRectNode(svgRoot:SVGSVGNode, xml:XML, original:SVGNode = null):void {
+            super(svgRoot, xml, original);
+        }
         
         /**
          * Generate graphics commands to draw a rectangle
@@ -57,12 +51,21 @@ package com.sgweb.svg.nodes
             }
             
             //x & y loaded in setAttributes()
-            if (rx != null) {
-                this._graphicsCommands.push(['RECT', 0, 0, width, height, (SVGColors.cleanNumber(rx) * 2), SVGColors.cleanNumber(ry) * 2]);                
+
+            if (width != 0 && height != 0) {
+                if (rx != null) {
+                    this._graphicsCommands.push(['RECT', 0, 0, width, height, (SVGColors.cleanNumber(rx) * 2), SVGColors.cleanNumber(ry) * 2]);                
+                }
+                else {
+                    this._graphicsCommands.push(['RECT', 0, 0, width, height]);
+                }
             }
-            else {
-                this._graphicsCommands.push(['RECT', 0, 0, width, height]);
-            }
+
+            //Width/height calculations for gradients
+            this.setXMinMax(0);
+            this.setYMinMax(0);
+            this.setXMinMax(width);
+            this.setYMinMax(height);
         }        
     }
 }

@@ -1,35 +1,27 @@
 /*
-Copyright (c) 2008 James Hight
-Copyright (c) 2008 Richard R. Masters, for his changes.
+ Copyright (c) 2009 by contributors:
 
-Permission is hereby granted, free of charge, to any person
-obtaining a copy of this software and associated documentation
-files (the "Software"), to deal in the Software without
-restriction, including without limitation the rights to use,
-copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the
-Software is furnished to do so, subject to the following
-conditions:
+ * James Hight (http://labs.zavoo.com/)
+ * Richard R. Masters
 
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-OTHER DEALINGS IN THE SOFTWARE.
+    http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
 */
 
 package com.sgweb.svg.nodes
 {
-    import com.sgweb.svg.data.SVGColors;
-    import com.sgweb.svg.nodes.mask.SVGMask;
-    import com.sgweb.svg.nodes.mask.SVGClipMaskParent;
-    import com.sgweb.svg.nodes.mask.SVGBlurMaskParent;
+    import com.sgweb.svg.core.SVGNode;
+    import com.sgweb.svg.nodes.SVGSVGNode;
+    import com.sgweb.svg.utils.SVGColors;
     
     import flash.filters.BlurFilter;
     import flash.geom.Matrix;
@@ -39,12 +31,11 @@ package com.sgweb.svg.nodes
         
         private var _filters:Array;
         
-        public function SVGFilterNode(svgRoot:SVGRoot, xml:XML)
-        {
-            super(svgRoot, xml);
+        public function SVGFilterNode(svgRoot:SVGSVGNode, xml:XML, original:SVGNode = null):void {
+            super(svgRoot, xml, original);
         }
         
-        override protected function parse():void {
+        override protected function parseChildren():void {
                 
         }
         
@@ -55,41 +46,46 @@ package com.sgweb.svg.nodes
             var nodeFilters:Array = new Array();
             var list:XMLList =     this._xml.svg::feGaussianBlur;
 
-
-            var svgNode:SVGNode = objectToFilter;
-            var concatMatrix:Matrix = new Matrix();
-            var oldMatrix:Matrix;
-
-            while (svgNode) {
-                // The root does not get its matrix from xml; it gets it from direct
-                // assignment (for scaling purposes) when the flash control is created.
-                if (svgNode is SVGRoot) {
-                    oldMatrix = svgNode.transform.matrix;
-                    oldMatrix.concat(concatMatrix);
-                    concatMatrix = oldMatrix;
-                    break;
-                }
-                if (  !(svgNode is SVGClipMaskParent)
-                   && !(svgNode is SVGBlurMaskParent)
-                   && (svgNode.xml.@transform != undefined) ) {
-                    oldMatrix = this.parseTransform(svgNode.xml.@transform);
-                    oldMatrix.concat(concatMatrix);
-                    concatMatrix = oldMatrix;
-                }
-                svgNode = SVGNode(svgNode.parent);
-            }
-
             if (list.length()) {
+                var svgNode:SVGNode = objectToFilter;
+                var concatMatrix:Matrix = new Matrix();
+                var oldMatrix:Matrix;
+
+                while (svgNode) {
+                    if (svgNode.getAttribute('transform') != null) {
+                        oldMatrix = this.parseTransform(svgNode.getAttribute('transform'));
+                        oldMatrix.concat(concatMatrix);
+                        concatMatrix = oldMatrix;
+                    }
+                    if (svgNode is SVGSVGNode) {
+                        break;
+                    }
+                    svgNode = SVGNode(svgNode.getSVGParent());
+                }
+
                 var stdDeviation:String = this._xml.svg::feGaussianBlur.@stdDeviation.toString();
+                var stdDeviationX:String;
+                var stdDeviationY:String;
+
                 if (stdDeviation == null) {
-                    stdDeviation = '4';
+                    stdDeviationX = stdDeviationY = '4';
                 }
-                var blurAmount:Number = SVGColors.cleanNumber(stdDeviation);
-                blurAmount = blurAmount * concatMatrix.a;
-                if (objectToFilter.getSVGMaskAncestor() != null) {
-                    blurAmount = blurAmount * .25;
+                else {
+                    var values:Array = stdDeviation.split(/\s+/);
+                    if (values.length > 1) {
+                        stdDeviationX = values[0];
+                        stdDeviationY = values[1];
+                    }
+                    else {
+                        stdDeviationX = stdDeviationY = values[0];
+                    }
                 }
-                nodeFilters.push(new BlurFilter(blurAmount*1.4, blurAmount*1.4, 3));
+                var blurAmountX:Number = SVGColors.cleanNumber(stdDeviationX);
+                var blurAmountY:Number = SVGColors.cleanNumber(stdDeviationY);
+                blurAmountX = blurAmountX * concatMatrix.a;
+                blurAmountY = blurAmountY * concatMatrix.a;
+
+                nodeFilters.push(new BlurFilter(blurAmountX*1.5, blurAmountY*1.5, 8));
             }    
             
             return nodeFilters;

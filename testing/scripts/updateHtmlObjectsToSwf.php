@@ -26,12 +26,11 @@
 			$newTag = '
 <object classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000"
             codebase="" id="mySVGViewerObj" width=' . $width . ' height=' . $height . '>
-    <param name=movie value="' . $svgViewer . '" />
-    <param name="FlashVars" value="sourceType=url_svg&svgURL=' . $svg . '" />
-    <param name="wmode" value="transparent" />
-    <param name="allowFullScreen" value="true"/>
+    <param name=movie value="' . $svgViewer . '">
+    <param name="FlashVars" value="sourceType=url_svg&svgURL=' . $svg . '">
+    <param name="wmode" value="transparent">
     <embed play=false name="mySVGViewerObj" 
-	    src="' . $svgViewer . '" quality=high wmode="transparent" allowFullScreen="true"
+	    src="' . $svgViewer . '" quality=high wmode="transparent"
 	    width=' . $width . ' height=' . $height . ' type="application/x-shockwave-flash"
 	    FlashVars="sourceType=url_svg&svgURL=' . $svg . '">
     </embed >
